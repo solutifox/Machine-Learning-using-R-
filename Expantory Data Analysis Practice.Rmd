@@ -1,0 +1,354 @@
+---
+title: "Expantory Data Analysis Practice"
+author: "Mohamed Ahmed"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+
+
+```{r}
+library(dplyr)
+library(gridExtra)
+library(HSAUR3)
+library(ggplot2)
+library(MASS)
+library(reshape2)
+library(GGally)
+```
+
+1. Calculate the median profit for the companies in the US and the median profit for the companies in the UK, France and Germany?
+
+Answer: The function dplyer was used filter the countries (US,UK, France and Germany) and then compute the median profit for comanies in each country. The results show that median for these countries ranges between 0.19 to 0.24 with USA having the highest median. 
+
+```{r}
+# use dplyer to filter and group then calculate median  
+Forbes2000 %>% filter(country %in% c('United States', 'United Kingdom', 'France', 'Germany')) %>% 
+                 group_by(country) %>% 
+                 summarise(Median = median(profits, na.rm = T))
+
+```
+
+2. Find all German companies with negative profit?
+
+Answer: Data was filtered based on location and if profits their were less than 0. Thirteen companies in Germany have negative profits. 
+
+```{r}
+# German Companies with negative profit 
+Forbes2000[Forbes2000$profits < 0 & Forbes2000$country == "Germany", "name"]
+```
+
+
+3. To which business category do most of the Bermuda island companies belong?
+
+First, we filter the column country to get bermuda rows and then count the category with most companies. Insurance companies have a big market in the Bermuda Islands. 
+
+```{r}
+Forbes2000 %>% filter(country == 'Bermuda') %>% count(category)%>% top_n(1)
+
+
+```
+
+4. For the 50 companies in the Forbes data set with the highest profits, plot sales against assets (or some suitable transformation of each variable), labeling each point  with the appropriate country name which may need to be abbreviated (using abbreviate) to avoid making the plot look too 'messy'.
+
+Answer: To answer this question, the dplyer package was used to manipulate data and extract data of top 50 companies based o their profits. The data was arranged from highest to lowest, the top 50 companies were selected along with necessary columns for plotting. For plotting, I assumed that data need to be normalized so I applied log transformation. sales vs assets were plotted using base R and ggplot to visualize some of the data we are interested in  
+
+```{r}
+# Use dplyer function to select companies with top 50 companies based on profit 
+top <- Forbes2000 %>% arrange(desc(profits)) %>% top_n(50) %>% dplyr::select(country, name, assets, profits, sales)
+
+
+# plot using Base R 
+plot(log(top$assets), log(top$sales),  ylab = "sales", xlab = "assets", main = "Log transformed Sales vs Assets", col="blue", pch=20)
+text(x=log(top$assets), y=log(top$sales), labels=abbreviate(top$country),data=top, cex=0.9, font=0.5)
+
+
+
+# Use ggplot2 to plot sales vs assets 
+ggplot(top, aes(x = log(assets), y = log(sales), colour="red", label=country)) +
+    geom_point(shape = 16, size = 2, alpha= 0.6, aes(color = country)) +
+    geom_text(aes(label = abbreviate(country)), hjust = 0, vjust = 0) +
+    labs(title = "Sales vs Assets", x= "Assets", y="Sales")
+```
+
+
+5. Find the average value of sales for the companies in each country in the Forbes data set, and find the number of companies in each country with profits above 5 billion US dollar. 
+
+Answer: Using dyplyer package, companies were grouped by country then the average value of sales for companies in each country was computed. For the second part of the question, companies with five billion profits and above were filtered,and then counted by country. 
+
+```{r}
+# computing average value of sales per country
+average <- Forbes2000 %>% group_by(country) %>% summarise(Mean = mean(sales, na.rm = T))
+head(average)
+
+# selecting companies with profit more than 5 billion
+Forbes2000 %>% filter(profits > 5) %>% count(country) %>% arrange(desc(country))
+
+```
+
+6. The data in Table 2.3 are part of a data set collected from a survey of household expenditure and give the expenditure of 20 single men and 20 single women on four commodity groups. The units of expenditure are Hon Kong dollars, the four commodity groups are:
+    housing: housing, including fuel and light
+    food: foodstuffs, including alcohol and tobacco
+    goods: other goods, including clothing, footwear and durable goods
+    services: services, including transport vehicles
+The aim of the survey was to investigate how the division of household expenditure between four commodity groups depends on total expenditure and to find out whether this relationship differs for men and women. Use appropriate graphical methods to answer these questions and state your conclusion.
+
+Answer: First, we calculated the total expenditure to visualize how much each gender was spending overall. The second step in our analysis was to visualize how much each gender spends on each commodity.  
+
+```{r}
+# Sum of household total expenditure
+household$Total.Expenditure <- rowSums(household[,c(1,2,3,4)])
+
+# Base R box plot
+boxplot(household$Total.Expenditure ~ household$gender, main= "Total Expenditure Per Gender", xlab = "Gender", ylab = "Total household Expenditure", col = "Orange", notch = T) 
+
+# box plot of Total household expenses using ggplot
+ggplot(household, aes(x=gender, y=Total.Expenditure)) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=TRUE, colour= "black", fill = "blue" ) + 
+  labs(title = "Total Expenditure per gender", x = "Gender", y= "Total household Expenditure")+
+  theme_classic()
+
+
+# bar plots for male and female expenses per commodity 
+a <- ggplot(data=household, aes(x=gender, y=food, fill=gender)) +
+    geom_bar(stat="identity")+
+  labs(title = "Food expenses per gender")
+
+b <- ggplot(data=household, aes(x=gender, y=service, fill=gender)) +
+    geom_bar(stat="identity")+
+  labs(title = "services expenses per gender")
+c <- ggplot(data=household, aes(x=gender, y=goods, fill=gender)) +
+    geom_bar(stat="identity")+
+  labs(title = "Goods expenses per gender")
+
+d <-ggplot(data=household, aes(x=gender, y=housing, fill=gender)) +
+    geom_bar(stat="identity")+
+  labs(title = "Housing expenss per gender")
+grid.arrange(a,b,c,d, nrow=2, ncol=2)
+
+
+
+```
+
+Conclusion: By analyzing our graphs, We can see that, overall, males spend more on all categories than females. Males spend on average a total of $3688$ on all commodities. On the other hand, females spend on average a total of $1507$ on all commodities. When we checked how much each gender spends on each commodity, we saw that females  spend insignificant amount of money on food, services, and goods compared to males; however, both genders spend significant amounts on housing. Males spend about $20000$ on housing, and females spend only $5000$ less than males. 
+
+
+7. Mortality rates per 100,000 from male suicides for a number of age groups and a number of countries are given in Table 2.3. Construct side-by-side box plots for the data from different age groups, and comment on what the graphic tells us about the data.
+
+```{r}
+suicides2
+
+# Box plot of mortality
+boxplot(suicides2, xlab = "Age groups", ylab = "Mortality rates", main = "Mortality rate For Different Male Age Groups", col = "green")
+
+
+# reshaping data 
+suicides2_transformed <- melt(suicides2)
+
+
+# ggplot 
+ggplot(suicides2_transformed, aes(x=factor(variable), y=value)) + 
+  geom_boxplot(outlier.colour="blue", outlier.shape=16, outlier.size=2, notch=TRUE, colour= "black", fill = "red") +
+  labs(x = "Age groups", y = "Mortality Rates", title = "Mortality rate For Different Male Age Groups")+
+  theme_classic()
+```
+
+Conclusion: Mortality rate keep on increasing as age increases. The group A65.74 has the highest Mortality rate. 
+
+8. Using a single R statement, calculate the median absolute deviation, $1.4826\cdot median|x-\hat{\mu}|$, where $\hat{\mu}$ is the sample median. Use the data set \textbf{chickwts}. Use the R function `mad()` to verify your answer.
+
+The Median Absolute Deviation was calculated using $1.4826\cdot median|x-\hat{\mu}|$, then the mad function was used to verify my answer. 
+
+```{r}
+# calculating the mean absolute deviation 
+1.4826*median(abs(chickwts$weight-median(chickwts$weight)))
+
+# verifying answer using mad function
+mad(chickwts$weight, median(chickwts$weight), constant = 1.4826)
+
+```
+
+9. Using the data matrix \textbf{state.x77}, find the state with the minimum per capita income in the New England region as defined by the factor \textit{state.division}. Use the vector \textit{state.name} to get the state name.
+
+Answer: The matrix state.x77, the factor state.division, and the vector state.name were combined in one data frame. The state with the minimum per capita income in Division was filtered. 
+
+```{r}
+# put the matrix state.x77, the factor state.division, and the vector state.name in one data frame 
+state.info <- data.frame(Income=state.x77[,"Income"], State = state.name, Division=state.division)
+
+# filter the state with the minimum per capita income
+New.England <- filter(state.info,state.info$Division=="New England")
+New.England %>% slice_min(Income,n=1)
+```
+
+10. Use subsetting operations on the dataset \textbf{Cars93} to find the vehicles with highway mileage of less than 25 miles per gallon (variable \textit{MPG.highway}) and weight (variable \textit{Weight}) over 3500lbs. Print the model name, the price range (low, high), highway mileage, and the weight of the cars that satisfy these conditions.
+
+Answer: Vehicles with less than 25 mileage and weight more than 3500 Ibs were filtered along with columns that we were asked to print (Model, Min.Price, Max.Price, MPG.highway, Weight).
+
+```{r}
+# vehicles with less than 25 mileage and weight more than 3500 Ibs  
+Cars93[Cars93$Weight > 3500 & Cars93$MPG.highway < 25 , c("Model", "Min.Price", "Max.Price", "MPG.highway", "Weight")]
+```
+
+11. Form a matrix object named \textbf{mycars} from the variables \textit{Min.Price, Max.Price, MPG.city, MPG.highway, EngineSize, Length, Weight} from the \textbf{Cars93} dataframe from the \textbf{MASS} package. Use it to create a list object named \textit{cars.stats} containing named components as follows:
+
+a) A vector of means, named \textit{Cars.Means}
+
+The dplyr package was used to select the variables needed to compute the mean.Lapply function was used to compute the mean for each variable.
+
+```{r}
+# selecting columns form cars93 data frame 
+cars.stats <- Cars93 %>%dplyr::select(Min.Price, Max.Price, MPG.city, MPG.highway, EngineSize, Length, Weight)
+
+# using the function lapply to compute the mean
+Cars.Means <- sapply(cars.stats, mean)       
+Cars.Means
+
+```
+
+b) A vector of standard errors of the means, named \textit{Cars.Std.Errors}
+
+Use the standard errors of means formula to compute standard errors of means for each selected column.
+
+```{r}
+# standard errors of means formula
+standard.error <- function(x) sqrt(var(x)/length(x))
+
+# compute standard errors of means using sapply function 
+Cars.Std.Errors <- sapply(cars.stats, standard.error)  
+Cars.Std.Errors
+```
+
+12. Use the \texttt{apply()} function on the three-dimensional array \textbf{iris3} to compute:
+
+a) Sample means of the variables \textit{Sepal Length, Sepal Width, Petal Length, Petal Width}, for each of the three species \textit{Setosa, Versicolor, Virginica}
+
+Computed sample means of the variables and for all the species using the apply function.
+
+```{r}
+# find means using apply function 
+apply(iris3, c(2,3), mean)
+
+```
+
+b) Sample means of the variables \textit{Sepal Length, Sepal Width, Petal Width} for the entire data set.
+
+Computed sample means of the variables and for all the species using the apply function.   
+
+```{r}
+apply(iris3, 2, mean)
+```
+
+13. Use the data matrix \textbf{state.x77} and the \texttt{tapply()} function to obtain:
+
+a) The mean per capita income of the states in each of the four regions defined by the factor \textit{state.region}
+
+
+We combined the matrix \textbf{state.x77} and the factor \textit{state.region} into one data frame and calculated the average income for each region.
+
+```{r}
+# put the data in one data frame 
+states <- data.frame(Income = state.x77[, "Income"], Region =state.region, stringsAsFactors = FALSE)
+
+
+# use tapply to compute the mean per capita income 
+tapply(states$Income, states$Region, mean)
+```
+
+b) The maximum illiteracy rates for states in each of the nine divisions defined by the factor \textit{state.division}
+
+We combined the \textbf{state.x77} and the factor \textit{state.division} into one data frame and calculated The maximum illiteracy rates for states in each of the nine divisions. 
+
+```{r}
+# 
+states.illit <- data.frame(state.x77, Division=state.division, stringsAsFactors = FALSE)
+
+# compute mean 
+tapply(states.illit$Illiteracy, states.illit$Division, max)
+```
+
+c) The number of states in each region
+
+We combined the matrix \state{state.name} and the factor \textit{state.region} into one data frame and then calculated the mean.     
+```{r}
+Num.states <- data.frame(Region = state.region, state.name = state.name, stringsAsFactors = FALSE)
+
+# compute mean
+tapply(Num.states$state.name, Num.states$Region, length)
+
+```
+    
+14. Using the data frame \textbf{mtcars}, produce a scatter plot matrix of the variables \textit{mpg, disp, hp, drat, qsec}. Use different colors to identify cars belonging to each of the categories defined by the \textit{carsize} variable in different colors.
+
+
+The variable \textit{carsize} was appended to the data frame \textbf{mtcars} then the scatter plot matrix was created. In the scatter plot matrix, the variable in each row serves as Y axis and the variable in each serves as the x axis. 
+
+```{r}
+# classifying cars based on size 
+carsize = cut(mtcars[,"wt"], breaks=c(0, 2.5, 3.5,5.5), labels = c("Compact","Midsize","Large"))
+
+# creat a data frame consisting of mtcars and car size 
+cars.data <- data.frame(mtcars, categories=carsize)
+
+  
+# Using base R
+pairs(~mpg + disp + hp + drat + qsec, data=cars.data, main="Scatterplot Matrix", col = cars.data$categories)
+
+# Using ggplot
+ggpairs(cars.data[,c("mpg", "disp", "hp", "drat", "qsec")], mapping = ggplot2::aes(colour = cars.data$categories))
+    
+```
+    
+15. Use the function \texttt{aov()} to perform a one-way analysis of variance on the \textbf{chickwts} data with \textit{feed} as the treatment factor. Assign the result to an object named \textit{chick.aov} and use it to print an ANOVA table.
+
+```{r}
+# Anova using aov function 
+chick.aov <- aov( weight ~ feed, chickwts)
+summary.aov(chick.aov)
+```
+
+16. Write an R function named \texttt{ttest()} for conducting a one-sample t-test. Return a list object containing the two components: 
+
+    - the t-statistic named T;
+    
+    - the two-sided p-value named P.
+    
+Use this function to test the hypothesis that the mean of the \textit{weight} variable (in the \textbf{chickwts} data set) is equal to 240 against the two-sided alternative. \textit{For this problem, please show the code of function you created as well as show the output. You can do this by adding} `echo = T` \textit{to the code chunk header.}
+
+We created the a function called ttest. using the ttest function we calculated the T test using this formula $t = (x-μ)/(s/√n)$ and the P value for the T test. Our null hypothesis was that sample mean is 240 and the alternative hypothesis is sample mean is not equal to 240. 
+
+```{r, echo=T}
+# loading packages 
+library(stats)
+
+# define function ttest 
+ttest = function(y, mu0, alpha){
+  
+  
+  sample.mean = mean(y$weight)
+  sample.size = nrow(y)
+  SD = sqrt(var(y$weight))
+  z_1 = qt(alpha/2,sample.size-1)
+  z_2 = qt(1-alpha/2,(sample.size-1))
+    
+  # calculate T and p value 
+  T =(sample.mean-mu0)/(SD/sqrt(sample.size))
+  P =2*(1-pt(T,df=sample.size-1))
+  return (list(P,T))
+}
+print("T value & P value")
+t_test <- ttest(y=chickwts,mu0 = 240,alpha = 0.05)
+t_test
+
+```
+
+Conclusion: Since this $P.value= 0.0244$ is less than our chosen $alpha=0.05$ value, we can reject the null hypothesis. therefore, we ave enough evidence to conclude that the theoretical mean for the weight is not a good approximation of the mean. 
+
+
+
+

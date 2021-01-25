@@ -1,0 +1,317 @@
+---
+title: "Generalized Additive Models"
+author: "Mohamed Ahmed"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r}
+library(mgcv)
+```
+
+
+
+## Exercises
+
+1. (Ex. 10.1 pg 207 in HSAUR, modified for clarity) Consider the **bodyfat** data from the **TH.data** package introduced in Chapter 9.
+
+
+    a) Use graphical methods to suggest which variables should in the model to predict body fat. (Hint: Are there correlated predictors?) Make sure to explain your reasoning.
+    
+
+Answer: 
+
+We plotted the correlation matrix to examine the correlation between the explanatory variables and themselves and the correlation between the explantory variables and the response variables. We can see from the plot that there is a correlation between multiple explantory variables and the response variable DEXfat such as waistcirc and hipcirc. And we can see that there is variables that have very low correlation to DEXfat such as elbowbreadth and age. We created a table that contains the relationship between predictor variables.
+
+However we want to avoid predictor variables that are highly correlated so,we dropped variables that have correlation that is above 0.94 and we summarized our selected predictors along with their correlations with DEXfat in the table below. 
+
+```{r}
+library(GGally) 
+#Loading packages and data 
+library(TH.data)
+data(bodyfat)
+
+# Base R correlation plot 
+pairs(bodyfat, main= "Scatterplot Matrix")
+
+
+# ggplot correlation plot 
+ggcorr(bodyfat)
+
+```
+    
+```{r}
+library(dplyr)  
+library(corrr)  
+
+# Correlation Between Predictors
+body_fat_p <-bodyfat[ -c(2) ]
+corr.body.f <- data.frame(abs(cor(body_fat_p)))
+diag(corr.body.f) <- 0
+#corr.body.f[lower.tr(corr.body.f)] <- 0
+corr.body.f <- format(corr.body.f, digits = 2)
+corr.body.f
+
+# Variables that will be kept 
+l.cor <- body_fat_p[,!apply(corr.body.f, 2, function(col) any(col > 0.94))]
+body <- cbind(bodyfat[,2], l.cor)
+colnames(body)[1] <- "DEXfat"
+
+correlated <- 
+  body %>%
+  correlate() %>%
+  focus(DEXfat)
+correlated <- correlated[order(correlated$DEXfat),]
+colnames(correlated) <- c("Selected Variables", "Correlation")
+correlated
+
+```
+
+
+
+
+We can see from the plots, That variables 
+
+    b) For feasability of the class, fit a generalised additive model assuming normal errors using the following code. 
+    
+            - Assess the **summary()** and **plot()** of the model (don't need GGPLOT for a plot of the model). Are all covariates informative? Should all covariates be smoothed or should some be included as a linear effect?
+        
+        - Report GCV, AIC, and total model degrees of freedom. Discuss how certain you are that you have a reasonable summary of the actual model flexibility.
+        
+        - Produce a diagnostic plot using **gam.check()** function. Are any concerns raised by the diagnostic plot?
+        
+        - Write a discussion on all of the above points.
+        
+Answer: 
+
+The model indicates that all the predictor variables are significant at 0.5 significance level except for **age,elbowbreadth, and anthro3c**. 
+from the model summary and the plots, we can see thatthe variables (waistcirc, elbowbreadth, anthro3a, age) look linear and have a degrees of freedom of one. 
+The variables **hipcirc(EDF=1.775), kneebreadth(EDF=8.754), anthro3c(EDF=7.042)** have DF above one. This indicates that these variables need smoothing of different orders based on their degrees of freedom. 
+
+The model does not have a high GGV **GGV = 8.435412**  however the model has a high **AIC = 345.708** and a high **R^2 = 0.9528156**. This indicates that the model need some needs smoothing and parameter tuning. The high R^2 means that the model explains 95% of the variation in response variables. 
+
+The residuals plot show that error is distributed randomly around zero. Also, the histogram show a normal distribution and the response vs fitted plot shows a linear relationship. All these plots indicate that the model is a good predictor.
+    
+```{r}
+# fit a generalized additive model
+bodyfat_gam <- gam(DEXfat ~ s(age) + s(waistcirc) + s(hipcirc) + s(elbowbreadth) + s(kneebreadth)+ s(anthro3a) + s(anthro3c), data = bodyfat)
+summary(bodyfat_gam)
+```
+```{r}
+#plots 
+#par(mfrow=c(2,4))
+plot(bodyfat_gam,select=1)
+plot(bodyfat_gam,select=2)
+plot(bodyfat_gam,select=3)
+plot(bodyfat_gam,select=4)
+plot(bodyfat_gam,select=5)
+plot(bodyfat_gam,select=6)
+plot(bodyfat_gam,select=7)
+```
+
+
+
+     
+```{r}
+#GCV
+cat("GGV")
+bodyfat_gam$gcv.ubre.dev
+
+#AIC
+cat("AIC")
+AIC(bodyfat_gam)
+
+# Adjusted R^2
+cat("Adjusted R^2")
+summary(bodyfat_gam)$r.sq
+
+# Degrees of freedom 
+cat("DF")
+sum(summary(bodyfat_gam)$edf)
+
+
+```
+
+```{r}
+gam.check(bodyfat_gam)
+```
+
+
+    c) Fit the model below, note that some insignificant variables have been removed and some other variables are no longer smoothed. Report the summary, plot, GCV and AIC.
+    
+Answer:
+
+The model indicates that all the predictor variables are significant at 0.5 significance level. 
+    
+```{r}
+data(bodyfat)
+#Fit a generalized additive model
+bodyfat_gam2 <- gam(DEXfat~ waistcirc + s(hipcirc) + s(kneebreadth)+ anthro3a + s(anthro3c), data = bodyfat)
+
+summary(bodyfat_gam2)
+```
+
+Answer:
+
+The plots shows the predictors that were smoothed for the model. The variables that were included in this model are the same variables that we concluded that they needed smoothing. 
+
+```{r}
+#Plots
+par(mfrow=c(1,3))
+plot(bodyfat_gam2,select=1)
+plot(bodyfat_gam2,select=2)
+plot(bodyfat_gam2,select=3)
+```
+
+Answer: 
+
+The GGv and the AIC are a bit lower than the previous model and the R^2 is alomost the same as the last model indicating that this model performs slighlty better than the last model. 
+
+```{r}
+#GCV
+cat("GGV")
+bodyfat_gam2$gcv.ubre.dev
+
+#AIC
+cat("AIC")
+AIC(bodyfat_gam2)
+
+# Adjusted R^2
+cat("Adjusted R^2")
+summary(bodyfat_gam2)$r.sq
+
+# Degrees of freedom 
+cat("DF")
+sum(summary(bodyfat_gam2)$edf)
+
+```
+
+```{r}
+gam.check(bodyfat_gam2)
+```
+    
+    d) Again fit an additive model to the body fat data, but this time for a log-transformed response. Compare the three models, which one is more appropriate? (Hint: use AIC, GCV, residual plots, etc. to compare models).
+    
+
+
+```{r}
+#log-transformed response
+bodyfat_gam3 <- gam(log(DEXfat) ~ waistcirc + s(hipcirc) + s(kneebreadth)+ anthro3a + s(anthro3c), data = bodyfat)
+
+summary(bodyfat_gam3)
+```
+
+
+
+```{r}
+# plots
+par(mfrow=c(1,3))
+plot(bodyfat_gam3,select=1)
+plot(bodyfat_gam3,select=2)
+plot(bodyfat_gam3,select=3)
+```
+```{r}
+#GCV
+cat("GGV")
+bodyfat_gam3$gcv.ubre.dev
+
+#AIC
+cat("AIC")
+AIC(bodyfat_gam3)
+
+#Adjusted R^2
+cat("Adjusted R^2")
+summary(bodyfat_gam3)$r.sq
+
+#Degrees of freedom 
+cat("DF")
+sum(summary(bodyfat_gam3)$edf)
+
+```
+```{r}
+gam.check(bodyfat_gam3)
+```
+
+Discussion: 
+
+
+The smoothed predictors are highly significant at 0.5 level except for *kneebreadth* which has p-value that is above 0.5. All the parametric coefficients are ignificant at 0.5 level as well. By observing the smoothed terms they seem to be more smooth than terms in part c and b. 
+
+The GGv for this model is **GGV = 0.008813659** and the AIC is **AIC = -136.47** They are both tremendously lower than the GGV and AIC for models in part b and part c. The R^2 for this model **0.9522733**  which is lower than the R^2 for the other models. This model explains does explain the variation in the response variable better than the other two models. The Df for this model is the lowest out of all with **DF= 12.59**. The diagnostics plots seem to be the similar for all models. This models residuals are distributed randomly around zero and both histogram and qq plots seem to have a normal distribution. I think the Part c model is the most appropriate model since it explains the highest percentage of variation in the response variable **0.9537**.
+
+    e) Run the code below to fit a generalised additive model that underwent AIC-based variable selection (fitted using the **gamboost()** function). What variable(s) was/were removed by using AIC?
+    
+
+    
+```{r}
+library("mboost")
+# Model selection based on AIC 
+bodyfat_boost <- gamboost(DEXfat~., data = bodyfat)
+bodyfat_aic <- AIC(bodyfat_boost)
+bf_gam <- bodyfat_boost[mstop(bodyfat_aic)]
+
+summary(bodyfat_boost)
+
+```
+
+Answer: 
+
+Variable age was the only variable removed by this selection method.
+
+
+2. (Ex. 10.3 pg 208 in HSAUR, modified for clarity) Fit an additive model to the **glaucomaM** data from the **TH.data** library with *Class* as the response variable. Read the description of the dataset and the goals of the experiment. Which covariates should be in the model and what is their influence on the probability of suffering from glaucoma? (Hint: Since there are many covariates, use **gamboost()** to fit the GAM.) Make sure to provide a written summary of the model you chose and your corresponding analysis. 
+
+
+#Overview:
+
+The GlaucomaM data has 196 observations in two classes. 62 variables are derived from a confocal laser scanning image of the optic nerve head, describing its morphology. Observations are from normal and glaucomatous eyes, respectively. 
+
+
+
+#Data and Model: 
+
+All variables are derived from a laser scanning image of the eye background taken by the Heidelberg Retina Tomograph. Most of the variables describe either the area or volume in certain parts of the papilla and are measured in four sectors (temporal, superior, nasal and inferior) as well as for the whole papilla (global). The global measurement is, roughly, the sum of the measurements taken in the four sector.
+
+We will fit an additive model to the data where class will be **Class** as response variable. We will use the **gamboost** to select the most influential variables since we a big number of covarites. 
+
+
+#Results 
+
+We fit a model and we selected the variables with most impact on the response variable. The data frame below lists the selected variables and their influence on the probability of suffering from glaucoma. The variable with the highest probability is variable **as** with probability of **0.17** and the variable with lowest probability is variable **mv** with probability of **0.01** 
+
+```{r}
+library(TH.data)
+data(glaucomaM)
+
+# gamboost
+glaucoma_boost <- gamboost(Class~. , data = GlaucomaM, family=Binomial())
+
+sum<- summary(glaucoma_boost)
+ex <- extract(glaucoma_boost,what='variable.names')
+prob <- data.frame(sum$selprob)
+row.names(prob) <- (ex)
+colnames(prob) <- ("Probablities")
+prob
+```
+
+strangely, All the selected explanatory variables are insignificant at level of 0.5. All the values have estimated degrees of freedom of 1 except for **as,mhcg,mhci,phcg,hvc,vari,mdi,and tmi**. which have EDF above 1. The **Deviance explained =  100% and R-sq.(adj) = 1* might be a bit suspicious and indicate that the model might be be fitting the data too well. 
+
+```{r}
+# Additive Model
+gam.model <- gam(Class ~ s(as) + s(abrs)   + s(hic)  + s(mhcg)  + s(mhcn) + s(mhci) + s(phcg)+  s(phcn) + phci + s(hvc) + s(vass) + s(vars) + s(vari) +  s(mdn) + s(mdi) + s(tms) +  s(tmi) + s(mv), 
+                data=GlaucomaM, family=binomial)
+summary(gam.model)
+```
+
+
+# Citation 
+
+1.Michael, Semhar, and Christopher P. Saunders. “Scatterplot Smoothers and GAM” Chapter 10. 18 Oct. 2020, South Dakota State University, South Dakota State University. 
+2.Everitt, Brian, and Torsten Hothorn. A Handbook of Statistical Analyses Using n SECOND EDITION. Taylor and Francis Group LLC, 2010.
+
+(n.d.). Retrieved November 06, 2020, from https://rpubs.com/kkuipers/529708

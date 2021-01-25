@@ -1,0 +1,190 @@
+---
+title: "Recursive Partitioning"
+author: "Mohamed Ahmed"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F, strip.white = TRUE, comment = NA)
+
+```
+
+Collaboration:
+
+I collaborated with Amin baabol in the completion of the R program for part a of this recursive partitioning assignment.I worked individually on all the problems, except for the base R analogous ggplot of the decision tree and the observed vs. predicted median value ggplot in part a. Other than that, our collaboration was mainly about helping each other conceptually comprehend the various algorithms and models covered in chapter 9.
+
+1. (Ex. 9.1 pg 186 in HSAUR, modified for clarity) The **BostonHousing** dataset reported by Harrison and Rubinfeld (1978) is available as a `data.frame` structure in the **mlbench** package (Leisch and Dimitriadou, 2009). The goal here is to predict the median value of owner-occupied homes  (`medv` variable, in 1000s USD) based on other predictors in the dataset. 
+
+    a) Construct a regression tree using rpart(). Discuss the results, including these key components:
+    
+    - How many nodes does your tree have?
+    - Did you prune the tree? Did it decrease the number of nodes?
+    - What is the prediction error (MSE)?
+    - Plot the predicted vs. observed values.
+    - Plot the final tree.
+    
+Answer:
+The tree has nine nodes
+yes, we pruned the tree at the ninth node, which had the smallest cross validation error(0.23990). No, it did not decrease the number of nodes because we pruned the tree at the last node
+prediction Error is 12.72
+
+```{r}
+library("mlbench")
+library("partykit")
+library(rpart.plot)
+library(ggparty)
+data("BostonHousing")
+
+set.seed(36508)
+# Building a regression tree 
+houses.rpart <- rpart(medv~., data = BostonHousing, control = rpart.control(minsplit = 10))
+
+# Printing complexity parameters for each split
+printcp(houses.rpart)
+
+## Predictions 
+houses.pred <- predict(houses.rpart, newdata = BostonHousing)
+
+## 
+MSE <- mean((BostonHousing$medv - houses.pred)^2)
+cat("prediction Error", MSE)
+
+## Plotting the predicted vs. observed values
+xlim <- range(BostonHousing$medv)
+plot(houses.pred ~ medv, data = BostonHousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim, main = "Observed Vs Predicted", col="darkgreen")
+abline(a = 0, b = 1)
+
+## create a data frame that contains observed and predicted 
+housing <- data.frame(Observed = BostonHousing$medv, Predicted = houses.pred)
+
+## ggplot 
+ggplot(data=housing,aes(x=Observed,y=Predicted)) + geom_point(color= "darkgreen") + geom_smooth(method = "lm") +
+  labs(title=" Observed Vs Predicted for regression trees")
+
+## Plotting the final tree
+plot(as.party(houses.rpart), 
+     tp_args = list(id = T))
+```
+    
+    b) Apply bagging with 50 trees. Report the prediction error (MSE) and plot the predicted vs observed values.
+```{r}
+set.seed(12455)
+
+## Model 
+bagging.trees <- vector(mode = "list", length = 50)
+n <- nrow(BostonHousing)
+random.smaples <- rmultinom(length(bagging.trees), n, rep(1, n)/n)
+model <- rpart(medv~ ., data = BostonHousing, 
+             control = rpart.control(xval = 0))
+for (i in 1:length(bagging.trees))
+  bagging.trees[[i]] <- update(model, weights = random.smaples[,i])
+
+
+## Predictions 
+houses.pred1 <- predict(model, newdata = BostonHousing)
+
+## MSE
+MSE2 <- mean((BostonHousing$medv - houses.pred1)^2)
+cat("prediction Error", MSE2)
+
+## create a data frame that contains observed and predicted 
+housing <- data.frame(Observed = BostonHousing$medv, Predicted = houses.pred1)
+
+## ggplot 
+ggplot(data=housing,aes(x=Observed,y=Predicted)) + geom_point(color= "darkred") + geom_smooth(method = "lm") +
+  labs(title=" Observed Vs Predicted for Bagging")
+
+## Plotting the predicted vs. observed values
+xlim <- range(BostonHousing$medv)
+plot(houses.pred1 ~ medv, data = BostonHousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim, main = "Observed Vs Predicted for Bagging", col= "darkred")
+abline(a = 0, b = 1)
+
+```
+
+
+    c) Apply bagging using the randomForest() function. Report the prediction error (MSE). Was it the same as (b)? If they are different what do you think caused it?  Plot the predicted vs. observed values.
+```{r}
+library("randomForest")
+data("BostonHousing")
+
+set.seed(84664)
+random.f <- randomForest(medv ~ ., data = BostonHousing, ntree = 50, mtry = 13)
+
+## Prediction
+predictions <- predict(random.f, data = BostonHousing)
+
+
+## MSE 
+MSE3 <- mean((BostonHousing$medv - predictions)^2)
+cat("prediction Error", MSE3)
+
+## create a data frame that contains observed and predicted 
+housing <- data.frame(Observed = BostonHousing$medv, Predicted = predictions)
+
+## ggplot 
+ggplot(data=housing,aes(x=Observed,y=Predicted)) + geom_point(color= "darkorange") + geom_smooth(method = "lm") +
+  labs(title="Observed Vs Predicted for Bagging using random forest")
+
+# plotting  predicted vs Observed
+xlim <- range(BostonHousing$medv)
+plot(predictions ~ medv, data = BostonHousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim, main = "Observed Vs Predicted for Bagging using random forest", col= "darkorange", pch = 1)
+abline(a = 0, b = 1)
+
+```
+
+
+Answer: 
+The MSE (11.71395) for part c is smaller and better than part b MSE (12.71556). The difference in MSE was caused by the way bagging and random forest work. when choosing a split point, bagging looks through all variables and variable values and to choose the most optimal split point. However, random forests algorithm is limited to random sample of variables of which to search. Although, for this part of the question, we are specifying the number of nodes and the number of variables in order to do bagging while using the random forest algorithm. 
+
+    d) Use the randomForest() function to perform random forest. Report the prediction error (MSE).  Plot the predicted vs. observed values.
+
+```{r}
+
+set.seed(84465)
+random.f <- randomForest(medv ~ ., data = BostonHousing)
+
+## Prediction
+predictions1 <- predict(random.f, data = BostonHousing)
+
+
+## MSE
+MSE4 <- mean((BostonHousing$medv - predictions1)^2)
+cat("prediction Error", MSE4)
+
+## create a data frame that contains observed and predicted 
+housing <- data.frame(Observed = BostonHousing$medv, Predicted = predictions1)
+
+## ggplot 
+ggplot(data=housing,aes(x=Observed,y=Predicted)) + geom_point(color= "darkblue") + geom_smooth(method = "lm") + labs(title="Observed Vs Predicted for random forest")
+
+# plotting  predicted vs Observed
+xlim <- range(BostonHousing$medv)
+plot(predictions1 ~ medv, data = BostonHousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim, main = "Observed Vs Predicted for random forest", col= "darkblue")
+abline(a = 0, b = 1)
+```
+
+    
+    e) Include a table of each method and associated MSE. Which method is more accurate?
+    
+```{r}
+### MSE TABLE FOR ALL METHODS
+
+MSE.table <- data.frame(
+    Method = c("Regression tree", "Bagging", "Bagging using Random Forest", "Random Forest"),
+    MSE = c(12.72, 16.24, 11.71, 9.48))
+MSE.table 
+```
+
+Answer: 
+The most accurate method is Random Forest with and the least accurate method is Bagging.Random Forest is more accurate than other methods because it is limited to random sample of variables of which to search.
+
+citations: 
+Saunders, C. (n.d.). Chris Sanders. Retrieved October 13, 2020, from https://d2l.sdbor.edu/d2l/le/content/1452614/viewContent/8305217/View
+Brownlee, J. (2020, August 14). Bagging and Random Forest Ensemble Algorithms for Machine Learning. Retrieved October 14, 2020, from https://machinelearningmastery.com/bagging-and-random-forest-ensemble-algorithms-for-machine-learning/
+    

@@ -1,0 +1,507 @@
+---
+title: "Density Estimation"
+author: "Mohamed Ahmed"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+
+
+## Exercises
+
+### Warning: There are only three questions, however they will require more time coding. You may need to review function calling conventions and whether the optional arguments and their default parameters are appropriate.
+
+1. (Ex. 8.1 in HSAUR, modified for clarity) The \textbf{galaxies} data from \textbf{MASS} contains the velocities of 8 galaxies from six well-separated conic sections of space (Postman et al., 1986, Roeder, 1990). The data are intended to shed light on whether or not the observable universe contains superclusters of galaxies surrounded by large voids. The evidence for the existence of superclusters would be the multimodality of the distribution of velocities.(8.1 Handbook)
+
+    a) Construct histograms using the following functions: 
+    
+        -hist() and ggplot()+geom_histogram()
+      
+        -truehist() and ggplot+geom_histogram() (make sure that the histograms show proportions, not counts.)
+      
+        -qplot()
+        
+    Comment on the shape and properties of the variable based on the five plots. Do you notice any sets of observations clustering? (Hint: You can adjust bin number or bin size as you try to determine the properties of the variable, but use the same bin settings between plots in your final analysis. You can also overlay the density function or use the rug command.)
+    
+    
+```{r}
+library(MASS)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+data(galaxies)
+
+
+# fix the typo mentioned in the help section of R
+galaxies[78] <- 6960
+
+
+# create a data frame 
+galax.velocity <- data.frame(galaxies)
+names(galax.velocity) <- 'velocity'
+
+
+# R base histogram
+hist(galax.velocity$velocity,
+     xlab = 'velocity',
+     main = "Histogram of Galaxies Velocity", col= "blue")
+
+
+
+# histogram using ggplot
+ggplot(galax.velocity, aes(velocity)) +
+  geom_histogram(binwidth = 5000, breaks = c(seq(5000, 35000, 5000)),fill = 'blue', color = "black") + 
+  labs(title="Histogram of Galaxies Velocity", y = "Frequency")
+
+
+## using truehist 
+truehist(galax.velocity$velocity, main="Histogram of Galaxies Velocity using truehist", xlab="Velocity", ylab= 'Frequency', col = "blue")
+
+## Using geom histogram 
+
+ggplot(galax.velocity, aes(velocity)) + geom_histogram(binwidth = 5000, breaks = c(seq(5000, 35000, 5000)),fill = 'blue' ,color = "black")+ labs(title ="Histogram of Galaxie's Velocity", xlab="Velocity",ylab="Frequency")
+
+## qplot 
+qplot(galax.velocity$velocity,geom="histogram",fill= I("blue"), 
+      col=I("black"),main = "Histogram of Galaxies Velocity", xlab = "Velocity", ylab= "Frequency")
+
+```
+
+
+Answer: 
+The qplot histogram shows a biomodal distribution. We can make visually inspect the data to estimate the distribution. The data is concentrated around the middle. My estimation is there is about three clusters. The largest cluster of data is around 20,000. The second cluster is around 10,000. The smallest cluster is around 35,000.
+
+
+    
+    b) Create a new variable \textit{loggalaxies} = $\log$(galaxies). Repeat part a) using the `loggalaxies` variable. Does this affect your interpretation of the graphs?
+    
+    
+```{r}
+## log velocity 
+galax.velocity$log.velocity <- log(galax.velocity$velocity)
+
+# R base histogram
+hist(galax.velocity$log.velocity,
+     xlab = 'log.velocity',
+     main = "Histogram of Galaxies Velocity", col= "green", freq = TRUE)
+
+# histogram using ggplot
+ggplot(galax.velocity, aes(log.velocity)) +
+  geom_histogram(binwidth = 0.14, bins= 7,fill = 'green', color = "black") + 
+  labs(title="Histogram of Galaxies Velocity", x= "log.Velocity", y= "Frequency")
+
+
+## using truehist 
+truehist(galax.velocity$log.velocity, main="Histogram of Galaxies Velocity using truehist", xlab="log.Velocity", ylab= 'Frequency', col = "green")
+
+## Using geom histogram 
+
+ggplot(galax.velocity, aes(log.velocity)) + geom_histogram(binwidth = 0.14, bins= 7,fill = 'green' ,color = "black")+ labs(title ="Histogram of Galaxie's Velocity", xlab="log.Velocity",ylab="Frequency")
+
+## qplot 
+qplot(galax.velocity$log.velocity,geom="histogram",fill= I("green"), 
+      col=I("black"),main = "Histogram of Galaxies Velocity", xlab = "log.Velocity", ylab= "Frequency")
+
+```
+
+
+Answer: 
+The main difference between the part a graphs and log scaled graphs is that the log scaled graph shows left skewed distribution. However the graphs still display multiple cluster of data. The log scaled shows mainly two clusters, but the qplot still show three main clusters.Part b findings align with my comments from part a. 
+    
+    c) Construct kernel density estimates using two different choices of kernel functions and three choices of bandwidth (one that is too large and “oversmooths,” one that is too small and “undersmooths,” and one that appears appropriate.) Therefore you should have six different kernel density estimates plots (you may combine plots when appropriate to reduce the number of plots made). Discuss your results. You can use the log scale or original scale for the variable, and specify in the plot x-axis which you choose.
+    
+    
+```{r}
+# BAse R plots
+
+par(mfrow=c(2,2))
+# Over smoothed 
+truehist(galax.velocity$velocity,ymax=0.0003,col="white", main="Over Smoothed Gaussian Density", xlab="Velocity", ylab= 'Density')
+lines(density(galaxies,kernel="gaussian",bw=5000),col="red")
+
+truehist(galax.velocity$velocity,ymax=0.0003,col="black", main=" Over Smoothed triangular Density", xlab="Velocity", ylab= 'Density')
+lines(density(galaxies,kernel="triangular",bw=5000),col="purple")
+
+par(mfrow=c(2,2))
+# under smoothed
+truehist(galax.velocity$velocity,ymax=0.0003,col="white", main=" Under Smoothed Gaussian Density", xlab="Velocity", ylab= 'Density')
+lines(density(galaxies,kernel="gaussian",bw=400),col="red")
+
+truehist(galax.velocity$velocity,ymax=0.0003,col="black", main=" Under Smoothed triangular Density", xlab="Velocity", ylab= 'Density')
+lines(density(galaxies,kernel="triangular",bw=400),col="purple")
+
+par(mfrow=c(2,2))
+# appropriately Smoothed 
+truehist(galax.velocity$velocity,ymax=0.0003,col="white", main=" Appropriately Smoothed Gaussian Density ", xlab="Velocity", ylab= 'Density')
+lines(density(galaxies,kernel="gaussian",bw=1000),col="red")
+
+truehist(galax.velocity$velocity,ymax=0.0003,col="black", main=" Appropriately Smoothed triangular Density", xlab="Velocity", ylab= 'Density')
+lines(density(galaxies,kernel="triangular",bw=1000),col="purple")
+
+
+
+
+```
+
+
+    
+```{r}
+
+library(gridExtra)
+# ggplot 
+d.plot1 <- ggplot() +
+  aes(galax.velocity$velocity) +
+  geom_histogram(aes(y=..density..), breaks = seq(5000, 35000, length.out = 7), fill = 'white', color = "black", closed = "left") +
+  stat_density(kernel = "gaussian", bw = 5000, fill = NA, col = "red") +
+  labs(title = "Over Smoothed Gaussian Kernal Density of Galaxies Velocity", x= "Velocity")
+
+d.plot <- ggplot() +
+  aes(galax.velocity$velocity) +
+  geom_histogram(aes(y=..density..), breaks = seq(5000, 35000, length.out = 7), fill = 'white', color = "black", closed = "left") +
+  stat_density(kernel = "gaussian", bw = 400, fill = NA, col = "red") +
+  labs(title = "Under Smoothed Gaussian Kernal Density of Galaxies Velocity", x= "Velocity")
+
+d.plot3 <- ggplot() +
+  aes(galax.velocity$velocity) +
+  geom_histogram(aes(y=..density..), breaks = seq(5000, 35000, length.out = 7), fill = 'white', color = "black") +
+  stat_density(kernel = "gaussian", bw = 1000, fill = NA, col = "red") +
+  labs(title = "Appropriately  Smoothed Gaussian Kernal Density of Galaxies Velocity", x= "Velocity")
+
+
+d.plot4 <- ggplot() +
+  aes(galax.velocity$velocity) +
+  geom_histogram(aes(y=..density..), breaks = seq(5000, 35000, length.out = 7), fill = 'white', color = "black", closed = "left") +
+  stat_density(kernel = "triangular", bw = 5000, fill = NA, col = "purple") +
+  labs(title = "Over Smoothed triangular Kernal Density of Galaxies Velocity", x= "Velocity")
+
+d.plot5 <- ggplot() +
+  aes(galax.velocity$velocity) +
+  geom_histogram(aes(y=..density..), breaks = seq(5000, 35000, length.out = 7), fill = 'white', color = "black", closed = "left") +
+  stat_density(kernel = "triangular", bw = 400, fill = NA, col = "purple") +
+  labs(title = "Under Smoothed triangular Kernal Density of Galaxies Velocity", x= "Velocity")
+
+d.plot6 <- ggplot() +
+  aes(galax.velocity$velocity) +
+  geom_histogram(aes(y=..density..), breaks = seq(5000, 35000, length.out = 7), fill = 'white', color = "black", closed = "left") +
+  stat_density(kernel = "triangular", bw = 1000, fill = NA, col = "purple") +
+  labs(title = "Appropriately  Smoothed triangular Kernal Density of Galaxies Velocity", x= "Velocity")
+
+
+
+grid.arrange(d.plot1,d.plot4)
+
+grid.arrange(d.plot,d.plot5)
+
+grid.arrange(d.plot3,d.plot6)
+
+
+
+```
+
+
+Answer: 
+Choosing an appropriate bin width was a challenging task. It seems that under smoothed density shows about four clusters. two large clusters in the center and two small clusters in the right and the left tail. 
+The over smoothed density shows one smooth curve in the middle. This density plot indicates that there is one large cluster of data. 
+The appropriately smoothed density curve indicates that there three clusters of data or possibly four clusters.  
+
+
+
+    
+    d) What is your conclusion about the possible existence of superclusters of galaxies? How many superclusters (1, , 3, ... )? (Hint: the existence of clusters implies the existence of empty spaces between galaxies.)
+
+
+Answer:
+by analyzing the histograms and the density plots, we can conclude that there is about three to four super clusters.
+
+
+
+
+    e) Fit a finite mixture model using  the Mclust() function in R (from the mclust library). How many clusters did it find?  Did it find the same number of clusters as your graphical inspection? Report parameter estimates and BIC of the best model. 
+    
+```{r}
+data("galaxies")
+library(mclust)
+
+model=Mclust(galaxies)
+model
+
+
+summary(model, parameters = TRUE)
+```
+   
+```{r}
+plot(model,what="density", xlab = "Velocity")
+title ("Finite mixture model Density")
+```
+
+
+```{r}
+mclustBIC(galaxies)
+```
+
+
+Answer:
+The model and the density plot found that there is four clusters. We estimated three to four models for parts a,b, and c which is close to what the model found. The BIC for the best model is -1579.862 (V,4). Parameter estimates are reported below
+
+
+```{r}
+cat("probabilities")
+model$parameters$pro
+
+
+```
+```{r}
+cat("Means")
+model$parameters$mean
+```
+ 
+```{r}
+cat("Variances")
+model$parameters$variance
+
+```
+
+
+
+
+
+. (Ex. 8. in HSAUR, modified for clarity) The **birthdeathrates** data from **HSAUR3** gives the birth and death rates for 69 countries (from Hartigan, 1975).
+
+    a) Produce a scatterplot of the data. Estimate the bivariate density and overlay the corresponding contour plot on the scatterplot.
+    
+    
+```{r}
+library(HSAUR3)
+library("KernSmooth")
+library(reshape2)
+library(dplyr)
+data("birthdeathrates")
+
+## scatter plots 
+birthdeathrates.scatter <- bkde2D(birthdeathrates, bandwidth = sapply(birthdeathrates, dpik))
+
+#plotting the contour plot
+contour(x = birthdeathrates.scatter$x1, y=birthdeathrates.scatter$x2, z= birthdeathrates.scatter$fhat, xlab="Birth", ylab='Death', main='Birth Vs. Death')
+points(birthdeathrates, pch=8, col='Blue')
+
+```
+
+    
+    b) What does the contour plot tell you about the structure of the data?
+    
+Answer:
+The data is concentrated around a birth rate of 20 and death rate of 10 for most countries. The biggest cluster is aound those rates. We have more clusters but the data is not concentrated as much in them. We have two to three countries which have high birth and death rate. Most countries have a birth rate around 20 and death rate around 10. Majority of the countries have birth rate that is higher than death rates. 
+
+
+
+    
+    c) Produce a perspective plot (persp() in R, ggplot is not required for this question).
+    
+```{r}
+persp (x=birthdeathrates.scatter$x1, y=birthdeathrates.scatter$x2, z=birthdeathrates.scatter$fhat, xlab="Birth", ylab="Death", zlab="Density",
+       theta=-150, axes=TRUE, box=TRUE, main = "Perspective plot for birth
+       and death Rates ", col='yellow')
+```
+
+    
+    d) Fit a finite mixture model using the Mclust() function in R (from the mclust library). Summarize this model using BIC, classification, uncertainty, and/or density plots.
+    
+```{r}
+data("birthdeathrates")
+model1 <- Mclust(birthdeathrates)
+summary(model1, parameters = TRUE)
+```
+
+    
+```{r}
+# base R BIC 
+
+plot(model1, what='BIC')
+title(main= "BIC Plot ")
+```
+```{r}
+# creating a data frame
+BIC.data<- as.data.frame(model1$BIC[,])
+
+## creating an ID column  
+BIC.data$ID <- rownames(BIC.data)
+
+## Reshape the table 
+melted.BIC<- reshape2::melt(BIC.data, var.ids= "ID")
+
+ggplot(melted.BIC, aes(x=as.numeric(ID), y = value, colour=variable, group=variable))+
+  scale_x_continuous("Number of Components")+
+  scale_y_continuous("BIC")+
+  geom_point()+
+  geom_line()+
+  labs(title = "BIC")
+
+
+```
+ 
+ 
+```{r}
+# Base R Classification 
+plot(model1,what="classification")
+title(main = "classification Plot ")
+```
+
+```{r}
+## Use dplyer to classification to the dataframe 
+## ggplot 
+
+birthdeathrates %>% 
+  mutate(classification = factor(model1$classification)) %>% 
+  
+  ggplot(aes(birth, death, shape = classification, color = classification)) +
+  geom_point() + 
+  guides(size = guide_legend(), shape = guide_legend()) + 
+  theme_classic() +
+  stat_ellipse(level = 0.6, type = "t") + 
+  labs(x = "birth", y = "death", title = "classification Plot")
+```
+
+
+
+
+```{r}
+# Base R Uncertainty
+
+plot(model1, what="uncertainty")
+title(main = "uncertainty Plot")
+```
+
+
+```{r}
+
+birthdeathrates %>% mutate(uncertainty = model1$uncertainty) %>% 
+  ggplot(aes(birth, death, size = uncertainty, color = uncertainty)) +
+  geom_point() + 
+  guides(size = guide_legend(), colour = "legend") + 
+  theme_classic() +
+  stat_ellipse(level = 0.5, type = "t") + 
+  labs(x = "birth", y = "death", title = "Uncertainty plot")
+
+```
+```{r}
+# density plot 
+plot(model1, what='density')
+```
+
+
+   
+    e) Discuss the results in the context of Birth and Death Rates.
+    
+Answer:
+
+The model found that there is four clusters. We can conclude that, generally, the birth rate is twice the death rate in most countries. For one group of countries as birth rate increases from 2 to 27, death rate stays decreases. For countries where their birth is increasing from 28 to 38, death stays at a range of 6 to 15. For countries that have high birth rate that ranges from 39 to 50 , death rate increases slightly to reach 20. There is a group of two countries that have very high birth rates and death rates. Generally, majority of countries are having more babies than people dying except for for countries where where more babies are being born and more people are dying. 
+
+    
+
+3. (Ex. 8.3 in HSAUR, modified for clarity) Fit finite mixtures of normal densities individually for each gender in the **schizophrenia** data set from **HSAUR3**. Do your models support the *sub-type model* described in the R Documentation?
+
+    Quote from the R Documentation: *A sex difference in the age of onset of schizophrenia was noted by Kraepelin (1919). Subsequent epidemiological studies of the disorder have consistently shown an earlier onset in men than in women. One model that has been suggested to explain this observed difference is known as the subtype model which postulates two types of schizophrenia, one characterized by early onset, typical symptoms and poor premorbid competence; and the other by late onset, atypical symptoms and good premorbid competence. The early onset type is assumed to be largely a disorder of men and the late onset largely a disorder of women.* (See ?schizophrenia)
+
+```{r}
+data(schizophrenia)
+
+male <- subset(schizophrenia, schizophrenia$gender=='male')
+female <- subset(schizophrenia, schizophrenia$gender=='female')
+
+# histograms for male and female 
+
+hist(female$age, xlab="Age", ylab="Frequency",main="Gaussian Kernal for Males with schizophrenia(Adjust=1)", probability = TRUE, boarder="green")
+lines(density(male$age, adjust=1))
+
+hist(male$age, xlab="Age", ylab="Frequency",main="Gaussian Kernal for Males with schizophrenia(Adjust=1)", probability = TRUE, boarder="green")
+lines(density(female$age, adjust=1))
+
+
+# ggplot 
+ggplot(schizophrenia, aes(x=schizophrenia$age, y=..density..)) +
+  geom_histogram(fill='maroon', color='black', size=0.2) + 
+  geom_density(kernal='gaussian', adjust=1.0) +
+  xlim(min(schizophrenia$age),max(schizophrenia$age)) +
+  labs(title = "Gaussian Kernal Density of schizophrenia(adjust=1)",x="Age",y="Frequency") +
+  facet_grid(gender~.)
+
+```
+
+Answer: 
+
+The histogram for males shows that most males have schizophrenia around the age of 20 and 40 where females have schizophrenia through years of life. For males, we estimate that there is about three clusters of data. For females, we estimate tat there about two clusters. 
+
+```{r}
+data(schizophrenia)
+M.model<- Mclust(male$age)
+F.model <- Mclust(female$age)
+```
+```{r}
+cat("Model Summary For Males")
+summary(M.model, parameter=TRUE)
+
+```
+
+```{r}
+cat("Model Summary For Females")
+summary(F.model, parameter=TRUE)
+```
+
+Discussion: 
+
+For females, the model found that there is two clusters of data around the age of 25 and 47 which indicates that women are prone to early and late start of schizophrenia.
+The model found that there two cluster for males with an average of 20 and 28 for each cluster respectively. Females have a larger age mean which indicates that males get the disorder earlier than females.
+ 
+
+```{r}
+# BIC
+plot(M.model, what = "BIC")
+```
+
+```{r}
+# BIC
+plot(F.model, what = "BIC")
+
+```
+
+
+BIC plots
+The BIC plots show that both males and females have two clusters.  
+
+
+```{r}
+plot(M.model, what='uncertainty', xlab="Age")
+title(main='Uncertainty for Male Model')
+```
+
+```{r}
+plot(F.model, what='uncertainty', xlab="Age")
+title(main='Uncertainty for Female Model')
+```
+
+```{r}
+plot(M.model, what='density', xlab="Age",)
+title(main="Male Model Density")
+```
+
+```{r}
+plot(F.model, what='density', xlab="Age",)
+title(main="Female Model Density")
+```
+
+
+Density plots:
+The Density plots show that females have early and late of schizophrenia with two clusters around 28 and 48 where most males have an early start of schizophrenia.
+
+Citations:
+
+Kuipers, K. (2018, September 18). Homework 4 - STAT 601. Retrieved October 13, 2020, from https://rpubs.com/kkuipers/529695
+
+Hothorn, T., &amp; Everitt, B. S. (2017). Chapter 8. In A handbook of statistical analyses using R. Boca Raton: CRC Press.
+

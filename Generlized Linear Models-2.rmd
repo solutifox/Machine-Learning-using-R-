@@ -1,0 +1,411 @@
+---
+title: "Generlized Linear Models-2"
+author: "STAT 601"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r}
+library(HSAUR3)
+library(ggplot2)
+library(mosaic)
+library(boot)
+library(dplyr)
+library(tidyr)
+library(ISLR)
+```
+
+
+## Exercises
+
+1. (Ex. 7.3 pg 147 in HSAUR, modified for clarity) Use the \textbf{bladdercancer} data from the \textbf{HSAUR3} library to answer the following questions.
+
+a) Construct graphical and/or numerical summaries to identify a relationship between tumor size and the number of recurrent tumors. Discuss your discovery. (For example, a mosaic plot or contingency table is a good starting point. Otherwise,  there are other ways to explore this data.)
+
+```{r}
+
+mosaicplot(xtabs(~number+tumorsize,data = bladdercancer),main = "#Recurrent Tumors vs Tumorsize",
+           xlab="Number of Recurrent Tumors",ylab="Tumor Size",shade = TRUE)
+
+#ggplot
+ggplot(bladdercancer, aes(number, fill = tumorsize)) +
+  geom_histogram(binwidth=.5, position="dodge") +
+  labs(title='Tumor Size',
+       x='Number of Recurrent Tumors',
+       y='Count')
+```
+
+
+Answer: 
+By, looking at the histogram plot, tumor>3cm and tumor<= 3cm don't have normal distribution. Th histogram shows that one tumor is occurring the most and the frequency of more tumors occurring is smaller than having two tumor. 
+
+```{r}
+ bladdercancer %>%
+  group_by(tumorsize,number) %>%
+  summarize(freq = n()) %>%
+  spread(number,freq,sep=' of tumors ')
+```
+
+The frequency table show that having one tumor occurs the most for all tumor sizes and the decreases as the number of tumors increase. The second highest most occurring is two tumors and the lowest is three and four tumors.  
+
+
+b) Assume a Poisson model describes the relationship found in part a). Build a Poisson regression that estimates the effect of tumor size on the number of recurrent tumors.  Does the result of this analysis support your discovery in part a)?
+
+
+```{r}
+# 
+# Model one 
+log.model_1 <- glm(number~tumorsize ,family = poisson,data = bladdercancer)
+summary(log.model_1)
+
+#Model Two 
+log.model_2 <- glm(number~tumorsize + time,family = poisson,data = bladdercancer)
+summary(log.model_2)
+
+
+```
+
+
+Answer: 
+For the first variable, the explanatory variable intercept is significant with p-value<0.05. The tumor size variable is not significant with a p-value > 0.05. For the second model,the explanatory variable intercept is not significant with p-value >0.05. The tumor size variable is not significant with a p-value > 0.05. The extra term time is not significant with p-value > 0.05 which means it does not improve the second model. The deviance for model one is 12.38  on 29  degrees of freedom which indicates under dispersion. For model two, the deviance. is 11.757  on 28  which indicates under dispersion. The AIC for model one (87.191) is lower than model two (88.568) which means that it is better model. 
+
+
+```{r}
+anova(log.model_1,log.model_2,test='Chisq')
+
+```
+
+We can use X^2 test to to see if the added  variable time had any effect on the model. The deviance(12.380) for the first model is far from its df(29). For the second model the deviance is (11.757) which is far from its df(28). The P-value>0.05 which implies that there is no statistical significance in the second model. Adding a variable does not improve the model. By looking at the residuals vs fitted values plot, we can see that both models have either high residuals or low residuals.Both models did not fit the data well. We will choose model two to be the better model because the chi square test accepts the null hypothesis that model one is a better model   
+
+
+    
+    
+2. Let $y$ denote the number of new AIDS cases in Belgium between the years 1981-1993. Let $t$ denote time.
+\begin{verbatim}
+y = c(12, 14, 33, 50, 67, 74, 123, 141, 165, 204, 253, 246, 240)
+t = c(1:13)
+\end{verbatim}
+
+a) Plot the progression of AIDS cases over time. Describe the general nature of the progress of the disease.
+
+The general trend is increasing linear relationship between the number of aids cases increases and years. Approximately after year 11, there is a drop in the number of cases.   
+
+```{r}
+
+y <- c(12, 14, 33, 50, 67, 74, 123, 141, 165, 204, 253, 246, 240) 
+t <- 1:13
+
+# put the data in a data frame 
+B.data <- data.frame(N.cases=y,years=t)
+# Scatter plot 
+plot(N.cases ~ years, data = B.data, main = "Number of AIDs cases over years", xlab= "Years", ylab= "Number of AIDS Cases")
+
+# ggplot 
+ggplot(B.data,aes(x=years,y=N.cases)) +
+  geom_point() + 
+  labs(title='Number of AIDs cases over years',
+       x = 'Years',
+       y='Number of AIDS Cases')
+
+```
+    
+b) Fit a Poisson regression model $log(\mu_i)=\beta_0+\beta_1t_i$. How well do the model parameters describe disease progression? Use a residuals (deviance) vs Fitted plot to determine how well the model fits the data.
+    
+
+```{r}
+# Model 
+poisson.model1 <- glm(N.cases ~ years, data=B.data, family=poisson)
+summary(poisson.model1)
+
+# Residuals vs Fitted 
+plot(poisson.model1, which=1)
+
+# ggplot 
+ggplot(poisson.model1, aes(x = .fitted, y = .resid)) + geom_point() + geom_smooth(group = 1, formula = y ~ x) + labs(title = "Residual Vs fitted")
+```
+B. Answers:
+
+How well do the model parameters describe disease progression?
+
+The variable years is highly significant with a p-value< 0.05 , small standard error, and coefficient value>0, which means that as years go by, we expect the number of AIDS cases to increase.   
+The explanatory variable year indicates that the rate ratio is 1.22, we concluded that the number of AIDS cases increased by 22% each year from 1981 to 1993. For one unit increase in years, the number of AIDS cases will increase. 
+
+Use a residuals (deviance) vs Fitted plot to determine how well the model fits the data
+
+For a model that fits the data well, residuals should be randomly scattered around zero for the entire range of fitted values. That would show that the model's predictions are correct on average instead of being too low or too high. For a well fitted model, the explanatory variables should explain the relationship well that only random errors remains meaning that the errors should not have a pattern. For this model, we can clearly see that the residual errors have a pattern and the fitted values are not scattered around zero at all. This means that model can be improved to fit the data well by adding more explanatory variables. Aslo, Data points 1,2, and 13 are ouliers because they are far from zero.
+
+c) Now add a quadratic term in time (\textit{ i.e., $log(\mu_i)=\beta_0+\beta_1t_i +\beta_2t_i^2$} ) and fit the model. Do the parameters describe the progression of the disease? Does this improve the model fit? Compare the residual plot to part b). 
+
+```{r}
+## create a quadratic variable 
+B.data$years2 <- B.data$years^2
+poisson.model2 <- glm(N.cases ~ years + years2, data = B.data, family = "poisson")
+summary(poisson.model2)
+
+# plot residuals vs fitted 
+plot(poisson.model2, which = 1)
+
+# ggplot 
+ggplot(poisson.model2, aes(x = .fitted, y = .resid)) + 
+    geom_point() + 
+    geom_smooth(group = 1, formula = y ~ x) + 
+    labs(title = "Residual Vs fitted")
+```
+Answers:
+
+C. 
+Do the parameters describe the progression of the disease?
+
+The variable years is significant with a p-value< 0.05 , small standard error, and coefficient value>0, which means that as years go by, we expect the number of AIDS cases to increase.
+The variable years^2 is significant with a p-value< 0.05 , small standard error, and coefficient value>0, but the coefficient is very close to zero. This means one years go by, we expect the number of AIDS cases to increase.
+
+The parameter years shows that the rate ratio is (1.74), which means that the number of cases increases by 73% each years from 1981 to 1993. For one unit increase in years, the number of AIDS cases will increase. 
+
+
+```{r}
+# Coefficients
+exp(coef(poisson.model2))
+```
+
+Does this improve the model fit?
+
+By looking at the graph we can say that this model fits the data better than the first model. By adding one quadratic variable, we can see that the residuals are scattered around zero and there is randomness in the layout of the points. These two factors are a good indicator that this model improves the model fit. we still have some outliers with high and low residual values(2,6,11). 
+
+Compare the residual plot to part b 
+
+By looking at booth graphs, we can see that the quadratic model fit the data better. The first model errors follow a pattern and the quadratic model errors are random. Random errors imply that the explanatory variables explain the relationship better. Also, unlike the first model, the quadratic model residuals are centered around zero which indicates that the quadratic model predictions are are correct on average. Overall, the second model is a better fit for the data. 
+
+
+d) Compare the two models using AIC. Did the second model improve upon the first? Does this confirm your position from part c)? 
+
+```{r}
+extractAIC(poisson.model1)
+extractAIC(poisson.model2)
+```
+
+
+Model1 AIC: 166.37
+Model2 AIC: 96.924
+AIC indicates in sample prediction error and the quality of the model. The second model has a lower Akaike information criterion (AIC) than the first model which shows that adding a quadratic term improved the quality of the second model.
+AIC also strongly favors a quadratic model. 
+Yes The lower AIC for the second model confirms my position from Part c that the second model overall is a better model for the data than the first model.
+
+
+e)  Compare the two models using a $\chi^2$ test (\texttt{anova} function will do this). Did the second model improve upon the first? Does this confirm your position from part c) and/or d)? 
+
+```{r}
+anova(poisson.model1,poisson.model2,test='Chisq')
+
+```
+
+We can use X^2 test to to see if the quadratic variable had any effect on the model. The deviance(9.240) for the second model is closer to its df(10. For the first model the deviance is (80.686) which is far from its df(11). The one degrees of freedom for the the X^2 test indicates that the quadratic variable is statistically significant predictor of the number of AIDS cases. The P-value<0.05 which implies that there is statistical significance in the second model. Adding a quadratic variable improves the model. This confirms my position from part c & d. 
+
+
+3. (Adapted from ISLR) Load the \textbf{Default} dataset from \textbf{ISLR} library. The dataset contains four features on 10,000 customers. We want to predict which customers will default on their credit card debt based on the observed features. You had developed a logistic regression model on HW \#2. Now consider the following two models 
+    \begin{itemize}
+    \item[Model 1:] Default = Student + balance 
+    \item[Model 2:] Default = Balance 
+    \end{itemize}
+    
+Compare the models using the following four model selection criteria.
+
+a) AIC
+
+```{r}
+
+data("Default", package = "ISLR")
+Default$default1 <- ifelse(Default$default == 'Yes', 1,0)
+Default$student1 <-ifelse(Default$student == 'Yes', 1,0)
+
+```
+
+```{r}
+## build a logistic regression model 
+logistic.model1 <- glm(default1 ~ student + balance ,family="binomial",data=Default)
+AIC(logistic.model1)
+```
+
+
+```{r}
+logistic.model2 <- glm(default1 ~ balance ,family="binomial",data=Default)
+AIC(logistic.model2)
+```
+
+
+Answer:
+Both models have high AIC values. The first model has a lower Akaike information criterion (AIC) than the second model which shows that excluding the covariate term Student reduced the quality of the second model. since the AIC for the second model is lower, we can say the second model is better than the first model.
+
+b) Training / Validation set approach. Be aware that we have few people who defaulted in the data. 
+
+```{r}
+set.seed(600)
+# Creating a training set and validation set
+split.data <- sample(1:nrow(Default), 
+size = 0.8*nrow(Default))
+training.data <- Default[split.data,]
+validation.data <- Default[-split.data,]
+```
+
+
+
+```{r}
+set.seed(700)
+# logistic model using training/validation 
+logistic.Model_1 <- glm(default1 ~ student + balance, data = training.data, family = "binomial")
+
+logisticModel_2 <- glm(default1 ~ balance, data = training.data, family = "binomial") 
+
+summary(logistic.Model_1)
+summary(logisticModel_2)
+
+# predictions 
+predication_1<-predict(logistic.Model_1, validation.data, type = "response")
+predication_2<-predict(logisticModel_2, validation.data, type = "response")
+
+```
+
+
+```{r}
+set.seed(642)
+# MSE
+MSE_1 <- mean((predication_1>0.5 & validation.data$default==0) | (predication_1<0.5 & validation.data$default1==1))
+
+MSE_2 <- mean((predication_1>0.5 & validation.data$default==0) | (predication_2<0.5 & validation.data$default1==1))
+
+cat("Model One Error", MSE_1)
+
+```
+```{r}
+cat("Model Two Error", MSE_2)
+```
+
+Dissuasion
+
+The first model has a lower AIC than the second model. Using the training/ validation approach resulted in lower AIC values for both models compared to step A models. All the variables for both models are significant with p-value<0.05. The Deviance for deviance values for both models are are lower than their degrees of freedom which suggests that the models are under dispersed. Again, since model one has lower AIC, We conclude that model one is better than model two.
+
+c) LOOCV
+
+```{r}
+# write a loop for loocv method (Model 1)
+num <- 100
+loocv.a <- matrix(NA, nrow=num, ncol = 1) 
+for(x in 1:num){
+    training <- Default[split.data,]
+    validation <- Default[-split.data,]
+    model.a <- glm(default1 ~ balance + student,data=training,family='binomial')
+    mse.a <- mean((predict(model.a ,validation,type='response')-validation$default1)^2)
+    loocv.a[x, ] <- mse.a
+}
+cat("Model One")
+mean(loocv.a)
+
+
+# write a loop for loocv method (Model 2)
+num <- 100
+loocv.b <- matrix(NA, nrow=num, ncol = 1)
+for(x in 1:num){
+    training.2 <- Default[split.data,]
+    validation.2 <- Default[-split.data,]
+    model.b <- glm(default1 ~ balance, data=training.2,family='binomial')
+    mse.b <- mean((predict(model.b ,validation.2,type='response')-validation.2$default1)^2)
+    loocv.b[x, ] <- mse.b
+}
+
+
+```
+```{r}
+cat("Model Two")
+mean(loocv.b)
+
+```
+
+Answers:
+
+Model one error is (0.02849921), and model two error is (0.02956515). Model one has a smaller error; therfore, it is more accurate. We choose model one to be the better model.
+
+
+d) 10-fold cross-validation.
+
+```{r}
+logistic.Model.a <- glm(default ~ student + balance, data = training.data, family = "binomial")
+logistic.Model.b <- glm(default ~ balance, data = training.data, family = "binomial")
+
+cv.glm(training.data, logistic.Model.a, K=10)$delta[1]
+cv.glm(training.data, logistic.Model.b, K=10)$delta[1]
+
+```
+
+Answer:
+Using the 10-fold cross-validation, we can see that the first model has a lower error(0.0196)than the second model(0.0198); therefore, we can consider the first model to be better than the second model. 
+
+
+Report validation misclassification (error) rate for both models in each of the four methods (we recommend using a table to organize your results). Select your preferred method, justify your choice, and describe the model you selected.
+
+```{r}
+data.frame(
+    Method = c("AIC", "Train/Validation", "Loocv", "Cross-Validation"),
+    Model.1 = c(1168,0.0305,0.028,0.0196),
+    Model.2 = c(1180.3,0.0310,0.030,0.0198))
+```
+
+The preferred method is 10-fold cross-validation because this method helps build k different models, so we are able to make predictions on all of our data set. We can perform training on the all the subsets but leave one(k-1) subset for the evaluation of the trained model which can give us more accurate estimate of out-of-sample accuracy. The first model has a lower AIC than the second model. All the variables for both models are significant with p-value<0.05. The Deviance for deviance values for both models are are lower than their degrees of freedom which suggests that the models are under dispersed. Also, for all the methods used above to split the datat, model one had a smaller error rate. We conclude that model one is better than model two. 
+
+
+
+4. Load the \textbf{Smarket} dataset in the \textbf{ISLR} library. This contains Daily Percentage Returns for the S\&P 500 stock index between 2001 and 2005. There are 1250 observations and 9 variables. The variable of interest is Direction. Direction is a factor with levels Down and Up, indicating whether the market had a negative or positive return on a given day.
+
+    Develop two competing logistic regression models (on any subset of the 8 variables) to predict the direction of the stock market. Use data from years 2001 - 2004 as training data and validate the models on the year 2005. Use your preferred method from Question \#3 to select the best model. Justify your selection and summarize the model.
+
+```{r}
+set.seed(4576)
+
+# Mode1
+log.model.1 <-
+  glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5,
+      data = Smarket,
+      family = "binomial")
+summary(log.model.1)
+plot(log.model.1, which=1)
+
+
+# croos validation
+cross.val.2 <- cv.glm(Smarket, log.model.1,K=10)$delta[1]
+cat("ERROR", cross.val.2)
+
+```
+
+Discussion:
+This model uses all the variables that were the data set as explanatory variables for the model. All the explanatory variables are insignificant since they all p-values>0. By looking at the residuals polt, we can see that the errors have a pttarn and the errors are far from zero, which indicates that the model is a bad fit. The residual deviance is 1728 with df 1244 which indicates that the model is over dispersed. cross validation was used for this model. The model has an error rate of 0.252 about 25% 
+
+```{r}
+
+# Model 2
+log.model.2 <-
+  glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag1*Lag2
+      ,data = Smarket,
+      family = "binomial")
+summary(log.model.2)
+plot(log.model.2, which=1)
+
+# cross validation 
+cross.val.2 <- cv.glm(Smarket, log.model.2,K=10)$delta[1]
+cat("ERROR TWo", cross.val.2)
+
+```
+
+This model uses the variables Lag1 and lag2 as explanatory variables for the model. All the explanatory variables are insignificant since they all p-values > 0. By looking at the residuals plot, we can see that the errors have a pattern and the errors are far from zero, which indicates that the model is a bad fit. The residual deviance is 1728.4  with df 1246 which indicates that the model is over dispersed. cross validation was used for this model. The model has an error rate of 0.252 about 25% 
+
+
+```{r}
+anova(log.model.1,log.model.2,test='Chisq')
+
+```
+
+We can use X^2 test to to see if the interaction variable had any effect on the model. The deviance(1245) for the second model is far from its df(1728.3). For the first model the deviance is (1244) which is far from its df(1728.3). The P-value>0.05 which implies that there is no statistical significance in the second model. Model one has an error rate of o.252 and model two has and error rate of 0.25. The AIC is lower for the second model indicating that it is better model. We conclude that the seocn model is a better model overall. 
+
+
